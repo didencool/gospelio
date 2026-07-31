@@ -1,6 +1,38 @@
 [package]
 name = "gospelio"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+authors = ["Andrii Didenkul<didencool+gospelio@gmail.com>"]
+description = "A lightweight cross-platform christian radio player"
+license = "GPL-3.0-or-later"
+readme = "README.md"
 
 [dependencies]
+# GUI window management
+eframe = "0.27"
+egui = "0.27"
+
+# Audio engine for decoding(MP3, AAC, OGG)
+rodio = { version = "0.18", default-features = false, features = ["mp3", "vorbis", "flac"] }
+
+# HTTP requests
+ureq = { version = "2.9", features = ["json"] }
+
+# Serialization and Configuration Persistence (config.toml)
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+
+# Handling System File Paths (~/.config)
+directories = "5.0"
+
+# Logging
+log = "0.4"
+env_logger = "0.11"
+
+# Linux-Specific Dependencies (Waybar System Tray / StatusNotifierItem)
+[target.'cfg(target_os = "linux")'.dependencies]
+ksni = "0.2"
+
+# Future Android Setup
+[target.'cfg(target_os = "android")'.dependencies]
+android_logger = "0.13"

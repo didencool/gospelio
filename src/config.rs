@@ -86,11 +86,12 @@ impl AppConfig {
     /// Зберігаємо поточні налаштування у файл ~/.config/gospelio/config.toml
     pub fn save(&self) {
         if let Some(path) = Self::get_config_path() {
+           if let Some(parent) = path.parent() {
                 let _ = fs::create_dir_all(parent);
             }
             if let Ok(toml_string) = toml::to_string_pretty(self) {
-                let _ = fs::write(path, toml_string);    
+                let _ = fs::write(path, toml_string);
             }
         }
+    }
 }
-

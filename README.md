@@ -54,3 +54,16 @@ url = "[http://ua.jtradio.net/live192](http://ua.jtradio.net/live192)"
 [[stations]]
 name = "Radio Bayrak"
 url = "[https://example.com/stream.ogg](https://example.com/stream.ogg)"
+
+Структура UI Проекту
+src/
+├── main.rs                 # Точка входу в програму
+├── app.rs                  # Головна структура стану GospelioApp
+├── audio.rs                # Внутрішня робота: відтворення та HTTP-потік
+├── config.rs               # Внутрішня робота: збереження та конфігурація
+├── ui/                     # Модуль інтерфейсу
+│   ├── mod.rs              # Декларація та експорт UI-компонентів
+│   ├── main_view.rs        # Головне вікно інтерфейсу (складання блоків)
+│   ├── stop_button.rs      # Кнопка зупинки
+│   ├── station_button.rs   # Кнопка вибору станції
+│   └── volume_slider.rs    # Слайдер гучності

@@ -1,6 +1,7 @@
 mod app;
 mod config;
 mod audio;
+mod ui;
 
 use app::GospelioApp;
 use eframe::egui;

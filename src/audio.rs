@@ -1,123 +1,185 @@
-// -- 
-use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
-//use std::io::{BufReader, Read, Seek, SeekFrom};
-use std::io::{Read, Seek, SeekFrom};
-use std::sync::{Arc, Mutex};
+// --src/audio.rs
+
+use std::io::{BufReader, Read, Seek, SeekFrom, Result as IoResult, Error, ErrorKind};
+use std::sync::mpsc::{self, Sender};
+use std::sync::Arc;
 use std::thread;
+use std::time::Duration;
+use rodio::{Decoder, OutputStream, Sink};
 
-pub struct StreamReader<R> {
-        inner: R,
-}
+//Обгортка для мережевих потоків, які не підтримують перемотку (Seek)
+struct NoSeek<R> {
+    inner: R,
+    pos: u64,
+} // <-- struct NoSeek
 
-impl<R: Read> Read for StreamReader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.inner.read(buf)
-    }
-}
+impl<R> NoSeek<R> {
+    fn new(inner: R) -> Self{
+        Self { inner, pos: 0 }
+    } // <-- fn new
+} // impl NoSeek
 
-impl <R: Read> Seek for StreamReader<R> {
-    fn seek(&mut self, _pos: SeekFrom) -> std::io::Result<u64> {
-        Ok(0)
-    }
-}
+impl<R: Read> Read for NoSeek<R> {
+    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
+        let bytes_read = self.inner.read(buf)?;
+        self.pos += bytes_read as u64;
+        Ok(bytes_read)
+    }// <-- fn read
+} // <-- impl Read for NoSeek
+
+
+impl <R: Read> Seek for NoSeek<R> {
+    fn seek(&mut self, pos: SeekFrom) -> IoResult<u64> {
+        let target = match pos {
+		SeekFrom::Start(p) => p,
+		SeekFrom::Current(n) => {
+			if n >=0 {
+				self.pos.saturating_add(n as u64)
+			} else {
+				self.pos.saturating_sub((-n) as u64)
+			} //<-- if n
+		}//<--SeekFrom::Current(n)
+		SeekFrom::End(_) => return Ok(self.pos),
+	};//<-- let target match pos
+	if target > self.pos {
+		let mut diff = target -self.pos;
+		let mut buf = [0u8; 1024];
+		while diff > 0 {
+			let to_read = (diff as usize).min(buf.len());
+			let read = self.inner.read(&mut buf[..to_read])?;
+			if read == 0 {
+				break;
+			}//<-- if read == 0
+			self.pos += read as u64;
+			diff -= read as u64;
+		} // <--while diff > 0
+	}//<-- if target
+	Ok(self.pos)
+    } // <-- fn seek
+} // <-- impl Read for NoSeek
+
+/*impl <R> Seek for NoSeek<R> {
+    fn seek(&mut self, pos: SeekFrom) -> IoResult<u64> {
+        match pos {
+            SeekFrom::Current(0) => Ok(self.pos),
+            _ => Err(Error::new(
+                    ErrorKind::Unsupported, "Інтернет потік не підтримує перемотку",
+                    )),
+        } // <-- match pos
+    } // <-- fn seek
+} // <-- impl Read for NoSeek
+*/
+
+/// Внутрішній перелік команд для аудіопотоку
+enum AudioCommand {
+    Play(String),
+    Stop,
+    SetVolume(f32),
+}// <-- enum AudioCommand
 
 pub struct AudioPlayer {
-    _stream: OutputStream,
-    _stream_handle: OutputStreamHandle,
-    sink: Arc<Mutex<Sink>>,
-}
+	tx: Sender<AudioCommand>,
+} //<--pub struct AudioPlayer 
 
 impl AudioPlayer {
-    pub fn new() -> Option<Self> {
-        let (_stream, stream_handle) = OutputStream::try_default().ok()?;
-        let sink = Sink::try_new(&stream_handle).ok()?;
+// Ініціалізує аудіопристрій та запускає фоновий потік обробки відтворення
+	pub fn new() -> Option<Self> {
+		let (tx, rx) = mpsc::channel::<AudioCommand>();
+		
+		// Фоновий потік для управління аудіосистемою та мережею
+		thread::spawn(move || {
+			let(_stream, stream_handle) = match OutputStream::try_default() {
+				Ok(val) => val,
+				Err(e) => {
+					eprintln!("Помилка ініціалізації аудіопристрою: {e}");
+					return;
+				} //<-- Err(e)
 
-        Some(Self {
-            _stream,
-            _stream_handle : stream_handle,
-            sink: Arc::new(Mutex::new(sink)),
-        }) //<-- Some
-        //if let Ok((stream, stream_handle)) = OutputStream::try_default() {
-        //    if let Ok(sink) = Sink::try_new(&stream_handle) {
-        //        return Some(Self {
-        //            _stream: stream,
-        //            _stream_handle: stream_handle,
-        //            sink: Arc::new(sink),
-        //        });
-        //    }
-        //}
-    
-    //None
-    } // <-- fn new
-    
-    pub fn play_url(&self, url: &str) {
-        //self.sink.stop(); // Зупиняємо попередній потік
+			}; // <-- let(_stream, stream_handle)
+			let mut current_sink: Option<Arc<Sink>> = None;
+			let mut current_volume: f32 = 0.8; 
 
-        let url_string = url.to_string();
-        //let sink_clone = self.sink.clone();
-        //let sink = Arc::clone(&self.sink);
-        let sink_clone = Arc::clone(&self.sink);
-        // Зупиняємо потік 
-        if let Ok(sink) = self.sink.lock() {
-            sink.stop(); 
-        } //<-- if let Ok
-        // Зупиняємо завантаження та декодування у фоновому потоці
-        thread::spawn(move || {
-            //////////////////////////////////////////////////////
-            // ВІдкриваємо HTTP потік
-            let response = match reqwest::blocking::get(&url_string[..]) {
-                Ok(resp) => resp,
-                Err(e) => {
-                    eprintln!("Помилка підключення до URL{}: {}", url_string, e);
-                    return;
-                } // <-- Err(e)
-            }; // <-- let response
-            let stream_reader = StreamReader { inner: response};
-            
-            //\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-            //Декодуємо аудіопотік
-            match Decoder::new(stream_reader) {
-                Ok(source) => {
-                    if let Ok(sink) = sink_clone.lock() {
-                        // Створюємо новий sink або очищуємо старий
-                        sink.append(source);
-                        sink.play();
-                    } // <-- if let Ok(sink) = sink_clone.lock()
-                } // <-- Ok(source)i
-                Err(e) => {
-                    eprintln!("Помилка декодування аудіо: {}", e);
-                } // <-- Err
-            } // <--  match Decoder::new       
-        }); // <-- thread::spawn
+			while let Ok(cmd) =rx.recv() {
+				match cmd {
+					AudioCommand::Play(url) => {
+						if let Some(sink) = current_sink.take() {
+							sink.stop();
+						}// <--if let Some(sink)
+						
+						let sink = match Sink::try_new(&stream_handle) {
+							Ok(s) => Arc::new(s),
+							Err(e) => {
+								eprintln!("Не вдалося створити Sink: {e}");
+								continue;
+							} // <--Err(e)
+						}; //<--let sink = match Sink::try_new
 
-        // Запускаємо фоновий потік для завантаження аудіо, щоб UI не "зависав"
-        // std::thread::spawn(move || {
-        //     if let Ok(response) = ureq::get(&url_string).call() {
-        //         //let reader = BufReader::new(response.into_reader());
-        //         let reader = response.into_reader();
-        //         let stream_reader = StreamReader { inner: reader };
-        //         let buf_reader = BufReader::new(stream_reader);
-        //         if let Ok(source) = Decoder::new(buf_reader) {
-        //             sink.append(source);
-        //             sink.play();
-        //         }
-        //     }
-        // });
-    } // <-- fn play_url 
+						sink.set_volume(current_volume);
+						let sink_handle = Arc::clone(&sink);
+						
+						thread::spawn(move || {
+							let client = reqwest::blocking::Client::builder()
+								.timeout(Duration::from_secs(10))
+								.build();
+							let response = match client {
+								Ok(c) => c.get(&url).send(),
+								Err(e) => {
+									eprintln!("Помилка створення HTTP клієнта: {e}");
+									return;
+								}//<--Err(e)
+							}; //<--let response
+							
+							match response {
+								Ok(res) if res.status().is_success() => {
+									let buffered_stream = BufReader::with_capacity(64 * 1024, res);
+									let seekable_stream = NoSeek::new(buffered_stream);
+									match Decoder::new(seekable_stream) {
+										Ok(source) => {
+											sink_handle.append(source);
+											sink_handle.sleep_until_end();
 
-    pub fn stop(&self) {
-        if let Ok(sink) = self.sink.lock(){
-            sink.stop();
-        } // <-- if let Ok(sink) = self.sink.lock(){
-        //self.sink.stop();
-    } // <-- fn stop
+										} //<-- Ok(source)
+										Err(e) => eprintln!("Помилка декодування аудіопотоку: {e}"),	
+									}//<-- match Decoder
+								}//<--Ok(res) if res.tatus
+							
+								Ok(res) => eprintln!("Помилка сервера HTTP: status{}", res.status()),
+								Err(e) => eprintln!("Помилка з'єднання з радіостанцією: {e}"),
+							} //<--match response
+						}); //<--thread::spawn
+						current_sink = Some(sink);
+					} //<--AudioCommand::Play
+					
+					AudioCommand::Stop => {
+						if let Some(sink) = current_sink.take() {
+							sink.stop();
+						}//<--if let Some(sink)
+					} //AudioCommand::Stop 
+					
+					AudioCommand::SetVolume(volume) => {
+						current_volume = volume.clamp(0.0, 1.0);
+						if let Some(ref sink) = current_sink {
+							sink.set_volume(current_volume);
+						} //<--if let Some(ref sink)
+					}//<--AudioCommand::SetVolume(volume)
+				} // <--match cmd 
+			} // <--while let Ok(cmd)
 
-    pub fn set_volume(&self, volume: f32) {
-        if let Ok(sink) = self.sink.lock() {
-            sink.set_volume(volume);
-        } // <-- if let Ok(sink)        
-       // self.sink.set_volume(volume);
-    } // <-- fn set_volume
 
-}
+		}); // <--thread::spawn
+
+		Some(Self { tx })
+	} // <--pub fn new
+	pub fn play_url(&self, url: &str) {
+		let _ = self.tx.send(AudioCommand::Play(url.to_string()));
+	}//<-- fn play_url
+
+	pub fn stop(&self) {
+		let _ = self.tx.send(AudioCommand::Stop);
+	}//<--fn stop
+
+	pub fn set_volume(&self, volume: f32) {
+		let _ = self.tx.send(AudioCommand::SetVolume(volume));
+	} // <-- fn set_volume
+} // <-- impl AudioPlayer 
 

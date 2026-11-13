@@ -4,29 +4,25 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Station {
     pub name: String,
     pub url: String,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
-    pub volume: f32,
-    pub volume_safety_limit: f32,
-    pub volume_step_normal: f32,
-    pub volume_step_fine: f32,
-    
-    // Нові налаштування для трею
-    pub minimize_to_tray_on_close: bool,
-    pub start_minimized: bool,
-
-    pub last_station_url: String,
-    pub stations: Vec<Station>,
+	pub volume: f32,
+	pub volume_safety_limit: f32,
+	pub volume_step_normal: f32,
+	pub volume_step_fine: f32,
+	// Нові налаштування для трею
+	pub minimize_to_tray_on_close: bool,
+	pub start_minimized: bool,
+	pub last_station_url: String,
+	pub stations: Vec<Station>,
+	pub buffer_size_kb: usize,
 }
-
 
 // Значення за замовчуванням (якщо файлу config.toml ще немає)
 impl Default for AppConfig {
@@ -36,7 +32,7 @@ impl Default for AppConfig {
             volume_safety_limit: 0.70,
             volume_step_normal: 0.02,
             volume_step_fine: 0.01,
-            
+            buffer_size_kb: 1024,
             minimize_to_tray_on_close: true, 
             start_minimized: false, // Можливо пізніше можна буде стартувати апку дразу в треї
             
@@ -64,6 +60,7 @@ impl AppConfig {
             }
         None
         }
+	
 
     /// Завантажуємо файл конфігурації з диска. Якщо файлу немає або він пошкоджений - повертаємо дефолтний
     pub fn load() -> Self {

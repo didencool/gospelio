@@ -1,0 +1,100 @@
+// Path: src/ui/appwindow.slint
+// Project: Gospelio Radio Player
+
+import { Button, LineEdit, VerticalBox, HorizontalBox } from "std-widgets.slint";
+
+// Main Window of the app
+export component MainWindow inherits Window {
+    title: "Gospelio";
+    width: 350px;
+    height: 300px;
+
+    // Сигнал, який спрацьовує при натисканні кнопки "Налаштування"
+    callback open-settings();
+
+    VerticalBox {
+        padding: 20px;
+        spacing: 15px;
+
+        Text {
+            text: "Gospelio Player";
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        Button {
+            text: "Перейти в Налаштування";
+            clicked => { root.open-settings(); }
+        }
+    }
+}
+
+// Вікно вибору радіостанції або введення власного URL (Права кнопка миші)
+export component StreamSelectorWindow inherits Window {
+    title: "Gospelio — Вибір радіопотоку";
+    width: 380px;
+    height: 420px;
+    always-on-top: true;
+
+    callback add-stream(string);
+    callback select-stream(int);
+
+    VerticalBox {
+        spacing: 10px;
+        padding: 12px;
+
+        Text {
+            text: "Християнські радіостанції";
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        // Введення власного URL
+        HorizontalBox {
+            padding: 0px;
+            spacing: 8px;
+            
+            input := LineEdit {
+                placeholder-text: "https://stream.url/live";
+            }
+            Button {
+                text: "Додати";
+                clicked => {
+                    if (input.text != "") {
+                        root.add-stream(input.text);
+                        input.text = "";
+                    }
+                }
+            }
+        }
+
+        Text {
+            text: "Доступні потоки:";
+            font-size: 12px;
+            color: #777;
+        }
+
+        // Тут у майбутньому буде список радіостанцій
+    }
+}
+
+// Вікно налаштувань (Середня кнопка миші)
+export component SettingsWindow inherits Window {
+    title: "Gospelio — Налаштування";
+    width: 320px;
+    height: 220px;
+    always-on-top: true;
+
+    VerticalBox {
+        padding: 16px;
+        Text {
+            text: "Параметри програвача";
+            font-size: 16px;
+            font-weight: 700;
+        }
+        Text {
+            text: "• Автозапуск при вході в систему\n• Сповіщення про зміну треку\n• Керування гучністю колесом миші";
+            font-size: 13px;
+        }
+    }
+}

@@ -1,36 +1,20 @@
-mod app;
-mod config;
+//! src/main.rs
+//!
+
 mod audio;
-mod ui;
+mod i18n;
 
-use app::GospelioApp;
-use eframe::egui;
-//use config::AppConfig;
+// Завдяки `pub use volume::VolumeControl;` у mod.rs, імпорт короткий:
+use audio::VolumeControl;
 
-fn main() -> eframe::Result<()> {
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([400.0, 500.0]) // Розміри вікна
-            .with_title("Gospelio Radio"),
-        ..Default::default()
-    };
-    
-    eframe::run_native(
-            "Gospelio",
-            options,
-            Box::new(|cc| Box::new(GospelioApp::new(cc))),
-        )
+fn main() {
+    i18n::init_i18n();
+
+    let mut volume = VolumeControl::new(0.5, 0.7);
+    println!("Gospelio запуск");
+    println!("Мова додатка: {}", i18n::tr("app-title"));
+    println!("Початкова гучність: {:.0}%", volume.value() * 100.0);
+
+    volume.increase();
+    println!("Гучність після збільшення: {:.0}%", volume.value() * 100.0);
 }
-
-//    println!("Завантаження конфігурації Gospelio...");
-//
-//    let config = AppConfig::load();
-//
-//    println!("Поточна гучність: {}%", config.volume * 100.0);
-//    println!("Згортати в трей при закритті {}", config.minimize_to_tray_on_close);
-//    println!("Збереження станцій: {}", config.stations.len());
-//
-//  Перевірка запису
-//    config.save();
-//    println!("Конфіг успішно перевірено та збереження!");
-//}

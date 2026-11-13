@@ -1,40 +1,47 @@
+# Path: Cargo.toml
+# Project: Gospelio Radio Player
+
 [package]
 name = "gospelio"
 version = "0.1.0"
 edition = "2021"
-authors = ["Andrii Didenkul<didencool+gospelio@gmail.com>"]
+authors = ["Andrii Didenkul <didencool+gospelio@gmail.com>"]
 description = "A lightweight cross-platform christian radio player"
 license = "GPL-3.0-or-later"
 readme = "README.md"
 
 [dependencies]
-# GUI window management
-eframe = "0.27"
-egui = "0.27"
+# GUI фреймворк Slint
+slint = "1.17.1"
 
-# Audio engine for decoding(MP3, AAC, OGG)
-rodio = { version = "0.18", default-features = false, features = ["mp3", "vorbis", "flac"] }
+# Аудіо-двигун для декодування (MP3, Vorbis, FLAC)
+rodio = { version = "0.22.2", default-features = false, features = ["playback", "mp3", "vorbis", "flac"] }
 
-# HTTP requests
-ureq = { version = "2.9", features = ["json"] }
+# HTTP-запити для завантаження списку станцій / аудіопотоку
+ureq = { version = "3.4.0", features = ["json"] }
 
-# Serialization and Configuration Persistence (config.toml)
+# Серіалізація конфігурації (config.toml)
 serde = { version = "1.0", features = ["derive"] }
-toml = "0.8"
+toml = "1.1"
 
-# Handling System File Paths (~/.config)
-directories = "5.0"
+# Робота з шляхами системних конфігів (~/.config/gospelio)
+directories = "6.0.0"
 
-# Logging
+# Логування
 log = "0.4"
-env_logger = "0.11"
-reqwest = { version = "0.13", features = ["blocking"] }
-#thread = "0.1.0"
+env_logger = "0.11.0"
 
-# Linux-Specific Dependencies (Waybar System Tray / StatusNotifierItem)
+i18n-embed = { version = "0.16.0", features = ["fluent-system", "desktop-requester"] }
+rust-embed = "8.5"
+unic-langid = "0.9"
+
+# Специфічні залежності під Linux (Sway / Wayland / Waybar StatusNotifierItem)
 [target.'cfg(target_os = "linux")'.dependencies]
-ksni = "0.2"
+ksni = { version = "0.3", default-features = false, features = ["async-io", "blocking"] }
 
-# Future Android Setup
+# База під майбутній Android
 [target.'cfg(target_os = "android")'.dependencies]
-android_logger = "0.13"
+android_logger = "0.15"
+
+[build-dependencies]
+slint-build = "1.17.1"

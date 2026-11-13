@@ -1,5 +1,5 @@
 // --- src/app.rs ---
-use crate::audio::AudioPlayer;
+use crate::audio::noseek::AudioPlayer;
 use crate::config::AppConfig;
 use crate::ui::main_view::render_main_view;
 //use crate::config::Station;

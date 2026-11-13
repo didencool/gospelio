@@ -15,3 +15,32 @@ gospelio/
     └── tray/                # Модуль системного трею
         ├── mod.rs
         └── sni.rs           # Реалізація StatusNotifierItem (ksni / tray-icon)
+
+////////////////////////////////
+
+gospelio/
+├── Cargo.toml
+├── README.md
+├── assets/                  # PNG іконки (play, pause)
+├── locales/                 # Локалізація (Fluent)
+│   ├── uk/
+│   │   └── main.ftl
+│   └── en/
+│       └── main.ftl
+└── src/
+    ├── main.rs              # Ініціалізація додатку, точки входу
+    ├── config.rs            # Збереження/завантаження конфігурації (TOML/JSON)
+    ├── i18n.rs              # Модуль локалізації Fluent
+    ├── audio/               # Логіка аудіо
+    │   ├── mod.rs
+    │   ├── player.rs        # Управління потоком (rodio / gstreamer)
+    │   └── volume.rs        # Нелінійна регуляція гучності
+    ├── tray/                # Системний трей (StatusNotifierItem для Wayland)
+    │   ├── mod.rs
+    │   └── events.rs        # Обробник подій (LMB, MMB, RMB, Scroll)
+    └── ui/                  # Графічний інтерфейс (egui / slint)
+        ├── mod.rs
+        ├── settings.rs      # Вікно налаштувань (MMB)
+        └── stations.rs      # Вікно вибору/додавання потоку (RMB)
+
+

@@ -11,6 +11,9 @@ pub struct Station {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+// Поля, яких немає у файлі (напр. додані в новій версії), беруться з Default,
+// тож старий config.toml не "ламається" і не перезаписується
+#[serde(default)]
 pub struct AppConfig {
 	pub volume: f32,
 	pub volume_safety_limit: f32,
@@ -64,20 +67,34 @@ impl AppConfig {
 
     /// Завантажуємо файл конфігурації з диска. Якщо файлу немає або він пошкоджений - повертаємо дефолтний
     pub fn load() -> Self {
-        if let Some(path) = Self::get_config_path() {
-            if path.exists() {
-                if let Ok(content) = fs::read_to_string(&path) {
-                    if let Ok(config) = toml::from_str::<AppConfig>(&content) {
-                        return config;
-                        }
-                    }
-                }
-            }
+        let Some(path) = Self::get_config_path() else {
+            return Self::default();
+        };
 
-    // Якщо файлу не існує, створюємо за замовченням і одразу зберігаємо його
-    let default_config = Self::default();
-    default_config.save();
-    default_config
+        if path.exists() {
+            // Файл є, але пошкоджений — НЕ перезаписуємо його, щоб не втратити станції користувача
+            return match fs::read_to_string(&path).map(|c| toml::from_str::<AppConfig>(&c)) {
+                Ok(Ok(config)) => config,
+                Ok(Err(e)) => {
+                    eprintln!("Помилка у {}: {e}. Використовую налаштування за замовчуванням", path.display());
+                    // Наступний save() перезапише файл, тож зберігаємо копію пошкодженого
+                    let backup = path.with_extension("toml.bak");
+                    if fs::copy(&path, &backup).is_ok() {
+                        eprintln!("Копію пошкодженого файлу збережено у {}", backup.display());
+                    }
+                    Self::default()
+                }
+                Err(e) => {
+                    eprintln!("Не вдалося прочитати {}: {e}", path.display());
+                    Self::default()
+                }
+            };
+        }
+
+        // Якщо файлу не існує, створюємо за замовченням і одразу зберігаємо його
+        let default_config = Self::default();
+        default_config.save();
+        default_config
     }
 
     /// Зберігаємо поточні налаштування у файл ~/.config/gospelio/config.toml

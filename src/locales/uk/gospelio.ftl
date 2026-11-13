@@ -7,4 +7,9 @@ pause = Пауза
 settings = Налаштування
 stations-list = Список радіостанцій
 add-stream = Додати свій потік
-volume = Гучність: { $val }%
+volume = Гучність
+stop = Стоп
+
+status-ready = Готовий до роботи
+status-stopped = Зупинено
+status-playing = Грає: { $name }

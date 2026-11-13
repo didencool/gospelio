@@ -81,13 +81,15 @@ impl AudioPlayer {
         // Фоновий потік для управління аудіосистемою та мережею
         thread::spawn(move || {
             // Аудіовихід має жити, поки працює цей потік
-            let device_sink = match DeviceSinkBuilder::open_default_sink() {
+            let mut device_sink = match DeviceSinkBuilder::open_default_sink() {
                 Ok(sink) => sink,
                 Err(e) => {
                     eprintln!("Помилка ініціалізації аудіопристрою: {e}");
                     return;
                 }
             }; // <-- let device_sink
+            // Не друкувати попередження про закриття аудіовиходу під час виходу з програми
+            device_sink.log_on_drop(false);
 
             let mut current_player: Option<Arc<Player>> = None;
             let mut current_volume: f32 = 0.8;

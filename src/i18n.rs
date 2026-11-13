@@ -7,6 +7,7 @@ use i18n_embed::{
     DesktopLanguageRequester, LanguageLoader,
 };
 use rust_embed::RustEmbed;
+use std::collections::HashMap;
 use std::sync::LazyLock;
 
 // 1. Вбудовуємо .ftl файли в бінарний файл під час компіляції
@@ -39,4 +40,10 @@ pub fn init_i18n() {
 /// Допоміжна макро-функція або обгортка для зручного отримання тексту
 pub fn tr(key: &str) -> String {
     LANGUAGE_LOADER.get(key)
+}
+
+/// Текст з параметрами, напр. `tr_args("status-playing", &[("name", "JT Radio")])`
+pub fn tr_args(key: &str, args: &[(&str, &str)]) -> String {
+    let args: HashMap<&str, &str> = args.iter().copied().collect();
+    LANGUAGE_LOADER.get_args(key, args)
 }
